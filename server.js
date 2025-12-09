@@ -13,34 +13,48 @@ const app = express();
 const PORT = process.env.PORT || 4444;
 const __filename = fileURLToPath(import.meta.url);
 const publicDir = path.join(dirname(__filename), "public");
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",");
 
-// Express CORS setup
-app.use(
-  cors({
-    origin: allowedOrigins?.includes("*") ? "*" : allowedOrigins || [],
-    methods: ["GET"],
-  })
-);
+// Load allowed origins from ENV (no spaces)
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",")
+  : [];
 
-// Custom CORS middleware
+// 💛 FIXED CORS MIDDLEWARE
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (
-    !allowedOrigins ||
-    allowedOrigins.includes("*") ||
-    (origin && allowedOrigins.includes(origin))
-  ) {
-    res.setHeader("Access-Control-Allow-Origin", origin || "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET");
+
+  // 1) Allow requests that have no origin (server-to-server, preflight)
+  if (!origin) {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
     return next();
   }
-  res
-    .status(403)
-    .json({ success: false, message: "Forbidden: Origin not allowed" });
+
+  // 2) Allow wildcard
+  if (allowedOrigins.includes("*")) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    return next();
+  }
+
+  // 3) Allow exact match of allowed origins
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    return next();
+  }
+
+  // 4) If origin is NOT allowed → Block
+  return res.status(403).json({
+    success: false,
+    message: "Forbidden: Origin not allowed",
+  });
 });
 
+// Serve public files
 app.use(express.static(publicDir, { redirect: false }));
 
 const jsonResponse = (res, data, status = 200) =>
