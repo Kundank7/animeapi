@@ -18,7 +18,7 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",");
 // Express CORS setup
 app.use(
   cors({
-    origin: allowedOrigins?.includes("https://youtube.ssvid.fun") ? "*" : allowedOrigins || [],
+    origin: allowedOrigins?.includes("*") ? "*" : allowedOrigins || [],
     methods: ["GET"],
   })
 );
